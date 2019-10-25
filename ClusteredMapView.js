@@ -23,6 +23,8 @@ import {
 
 export default class ClusteredMapView extends PureComponent {
 
+  clusters = {}
+
   constructor(props) {
     super(props)
 
@@ -40,12 +42,12 @@ export default class ClusteredMapView extends PureComponent {
   }
 
   componentDidMount() {
-    this.clusterize(this.props.data)
+    this.clusterize(this.props.data, this.props.groupKey)
   }
 
   componentWillReceiveProps(nextProps) {
-    if (this.props.data !== nextProps.data)
-      this.clusterize(nextProps.data)
+    if (this.props.data !== nextProps.data || this.props.groupKey !== nextProps.groupKey)
+      this.clusterize(nextProps.data, nextProps.groupKey)
   }
 
   componentWillUpdate(nextProps, nextState) {
@@ -61,23 +63,33 @@ export default class ClusteredMapView extends PureComponent {
     return this.mapview
   }
 
-  getClusteringEngine() {
-    return this.index
-  }
+  getClusteringEngine = (groupKey = 0) => this.clusters[groupKey]
 
-  clusterize(dataset) {
-    this.index = new SuperCluster({ // eslint-disable-line new-cap
-      extent: this.props.extent,
-      minZoom: this.props.minZoom,
-      maxZoom: this.props.maxZoom,
-      radius: this.props.radius || (this.dimensions[0] * .045), // 4.5% of screen width
-    })
+  getAllFromClusterEngine = (getFn = (x) => []) => Object.values(this.clusters).map(getFn).reduce((a, b) => a.concat(b), [])
 
-    // get formatted GeoPoints for cluster
-    const rawData = dataset.map(item => itemToGeoJSONFeature(item, this.props.accessor))
+  groupBy = (xs, key) => xs.reduce((rv, x) => { (rv[x[key]] = rv[x[key]] || []).push(x); return rv; }, {});
 
-    // load geopoints into SuperCluster
-    this.index.load(rawData)
+  clusterize = (dataset, groupKey = 0) => {
+    dataset = dataset || []
+    let dataGroups = groupKey ? this.groupBy(dataset, groupKey) : { 0: dataset };
+
+    Object.keys(dataGroups).forEach(groupValue => { 
+        const dataGroup = dataGroups[groupValue];
+        let cluster = new SuperCluster({ // eslint-disable-line new-cap
+            extent: this.props.extent,
+            minZoom: this.props.minZoom,
+            maxZoom: this.props.maxZoom,
+            radius: this.props.radius || (this.dimensions[0] * .045), // 4.5% of screen width
+        })
+
+        // get formatted GeoPoints for cluster
+        const rawGroupData = dataGroup.map(item => itemToGeoJSONFeature(item, this.props.accessor))
+
+        // load geopoints into SuperCluster
+        cluster.load(rawGroupData)
+
+        this.clusters[groupValue] = cluster;
+    });
 
     const data = this.getClusters(this.state.region)
     this.setState({ data })
@@ -98,7 +110,13 @@ export default class ClusteredMapView extends PureComponent {
     const bbox = regionToBoundingBox(region),
           viewport = (region.longitudeDelta) >= 40 ? { zoom: this.props.minZoom } : GeoViewport.viewport(bbox, this.dimensions)
 
-    return this.index.getClusters(bbox, viewport.zoom)
+    // Get all clusters from each group and set the grouped by value as a property
+    return Object.keys(this.clusters)
+            .map(groupValue => ({ groupValue, clusters: this.clusters[groupValue].getClusters(bbox, viewport.zoom)}))
+            .reduce((a, b) => {
+                b.clusters.forEach(x => x.properties['groupValue'] = b.groupValue)
+                return a.concat(b.clusters);
+            }, [])
   }
 
   onClusterPress(cluster) {
@@ -113,7 +131,7 @@ export default class ClusteredMapView extends PureComponent {
     // NEW IMPLEMENTATION (with fitToCoordinates)
     // //////////////////////////////////////////////////////////////////////////////////
     // get cluster children
-    const children = this.index.getLeaves(cluster.properties.cluster_id, this.props.clusterPressMaxChildren)
+    const children = this.getAllFromClusterEngine(x => x.getLeaves(cluster.properties.cluster_id, this.props.clusterPressMaxChildren))
     const markers = children.map(c => c.properties.item)
 
     const coordinates = markers.map(item => getCoordinatesFromItem(item, this.props.accessor, false))
@@ -143,7 +161,7 @@ export default class ClusteredMapView extends PureComponent {
                 {...d}
                 onPress={this.onClusterPress}
                 renderCluster={this.props.renderCluster}
-                key={`cluster-${d.properties.cluster_id}`} />
+                key={`cluster-${d.properties.groupValue}-${d.properties.cluster_id}`} />
             )
           })
         }
@@ -197,6 +215,7 @@ ClusteredMapView.propTypes = {
   layoutAnimationConf: PropTypes.object,
   edgePadding: PropTypes.object.isRequired,
   // string
+  groupKey: PropTypes.string,
   // mutiple
   accessor: PropTypes.oneOfType([PropTypes.string, PropTypes.func])
 }
