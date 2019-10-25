@@ -28,6 +28,7 @@ export default class ClusterMarker extends Component {
         pointCount,
         coordinate: { latitude, longitude },
         clusterId: this.props.properties.cluster_id,
+        groupValue: this.props.properties.groupValue
       }
       return this.props.renderCluster(cluster, this.onPress)
     }
