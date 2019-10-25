@@ -213,7 +213,7 @@ ClusteredMapView.propTypes = {
   layoutAnimationConf: PropTypes.object,
   edgePadding: PropTypes.object.isRequired,
   // string
-  groupKey: PropTypes.string
+  groupKey: PropTypes.string,
   // mutiple
   accessor: PropTypes.oneOfType([PropTypes.string, PropTypes.func])
 }
