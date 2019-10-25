@@ -23,6 +23,8 @@ import {
 
 export default class ClusteredMapView extends PureComponent {
 
+  clusters = {}
+
   constructor(props) {
     super(props)
 
