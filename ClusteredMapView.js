@@ -63,7 +63,7 @@ export default class ClusteredMapView extends PureComponent {
     return this.mapview
   }
 
-  getClusteringEngine = (groupKey = 0) => this.clusters[groupKey]
+  getClusteringEngine = (groupValue = 0) => this.clusters[groupValue]
 
   getAllFromClusterEngine = (getFn = (x) => []) => Object.values(this.clusters).map(getFn).reduce((a, b) => a.concat(b), [])
 
@@ -123,7 +123,7 @@ export default class ClusteredMapView extends PureComponent {
 
     // cluster press behavior might be extremely custom.
     if (!this.props.preserveClusterPressBehavior) {
-      this.props.onClusterPress && this.props.onClusterPress(cluster.properties.cluster_id)
+      this.props.onClusterPress && this.props.onClusterPress(cluster.properties.cluster_id, cluster.properties.groupValue)
       return
     }
 
@@ -131,7 +131,7 @@ export default class ClusteredMapView extends PureComponent {
     // NEW IMPLEMENTATION (with fitToCoordinates)
     // //////////////////////////////////////////////////////////////////////////////////
     // get cluster children
-    const children = this.getAllFromClusterEngine(x => x.getLeaves(cluster.properties.cluster_id, this.props.clusterPressMaxChildren))
+    const children = this.getClusteringEngine(cluster.properties.groupValue).getLeaves(cluster.properties.cluster_id, this.props.clusterPressMaxChildren);
     const markers = children.map(c => c.properties.item)
 
     const coordinates = markers.map(item => getCoordinatesFromItem(item, this.props.accessor, false))
