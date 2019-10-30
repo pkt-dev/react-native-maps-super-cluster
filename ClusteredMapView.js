@@ -70,6 +70,7 @@ export default class ClusteredMapView extends PureComponent {
   groupBy = (xs, key) => xs.reduce((rv, x) => { (rv[x[key]] = rv[x[key]] || []).push(x); return rv; }, {});
 
   clusterize = (dataset, groupKey = 0) => {
+    this.clusters = {};
     dataset = dataset || []
     let dataGroups = groupKey ? this.groupBy(dataset, groupKey) : { 0: dataset };
 
