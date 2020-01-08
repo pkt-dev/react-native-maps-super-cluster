@@ -29,7 +29,6 @@ export default class ClusteredMapView extends PureComponent {
     super(props)
 
     this.state = {
-      data: [], // helds renderable clusters and markers
       region: props.region || props.initialRegion, // helds current map region
     }
 
@@ -46,11 +45,8 @@ export default class ClusteredMapView extends PureComponent {
   }
 
   componentDidUpdate(prevProps, prevState) {
-    if (!this.isAndroid && this.props.animateClusters && this.clustersChanged(prevState))
+    if (!this.isAndroid && this.props.animateClusters)
       LayoutAnimation.configureNext(this.props.layoutAnimationConf)
-
-    if (this.props.data !== prevProps.data || this.props.groupKey !== prevProps.groupKey)
-      this.clusterize(prevProps.data, prevProps.groupKey)
   }
 
   mapRef(ref) {
@@ -90,13 +86,10 @@ export default class ClusteredMapView extends PureComponent {
         this.clusters[groupValue] = cluster;
     });
 
-    const data = this.getClusters(this.state.region)
-    this.setState({ data })
+    const data = this.getClusters(this.state.region);
+    return data;
   }
 
-  clustersChanged(nextState) {
-    return this.state.data.length !== nextState.data.length
-  }
 
   onRegionChangeComplete(region) {
     let data = this.getClusters(region)
@@ -142,7 +135,8 @@ export default class ClusteredMapView extends PureComponent {
   }
 
   render() {
-    const { style, ...props } = this.props
+    const { style, data, groupKey, ...props } = this.props
+    const mapViewData = this.clusterize(data, groupKey);
 
     return (
       <MapView
@@ -151,7 +145,7 @@ export default class ClusteredMapView extends PureComponent {
         ref={this.mapRef}
         onRegionChangeComplete={this.onRegionChangeComplete}>
         {
-          this.props.clusteringEnabled && this.state.data.map((d) => {
+          this.props.clusteringEnabled && mapViewData.map((d) => {
             if (d.properties.point_count === 0)
               return this.props.renderMarker(d.properties.item)
 
